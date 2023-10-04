@@ -1,0 +1,3 @@
+# ninja log v5
+0	14146	1653910874168360120	/home/efklidis/RAFT/networks/resample2d_package/build/temp.linux-x86_64-3.7/resample2d_cuda.o	3f8583fa7a404d83
+0	20107	1653910880124290967	/home/efklidis/RAFT/networks/resample2d_package/build/temp.linux-x86_64-3.7/resample2d_kernel.o	c7b33ceb5258871e
