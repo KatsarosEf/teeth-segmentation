@@ -10,7 +10,6 @@ from torchvision import transforms
 
 from losses import DeblurringLoss, SemanticSegmentationLoss, HomographyLoss
 from metrics import SegmentationMetrics, DeblurringMetrics, HomographyMetrics
-from models.MIMOUNet.MIMOUNet import VideoMIMOUNet
 from models.deepLabv3Plus import DeepLabv3Plus
 from models.unetPlusPlus import UnetPlusPlus
 from utils.transforms import ToTensor, Normalize, RandomHorizontalFlip, RandomVerticalFlip, RandomColorChannel,\
