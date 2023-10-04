@@ -8,24 +8,18 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from losses import DeblurringLoss, SemanticSegmentationLoss, HomographyLoss
-from metrics import SegmentationMetrics, DeblurringMetrics, HomographyMetrics
-from models.deepLabv3Plus import DeepLabv3Plus
-from models.unetPlusPlus import UnetPlusPlus
-from utils.transforms import ToTensor, Normalize, RandomHorizontalFlip, RandomVerticalFlip, RandomColorChannel,\
-    ColorJitter
-from utils.network_utils import model_save, model_load, measure_efficiency
-import torch.nn.functional as F
+from losses import SemanticSegmentationLoss
+from metrics import SegmentationMetrics
+from utils.transforms import ToTensor, Normalize, RandomHorizontalFlip, RandomVerticalFlip, ColorJitter
+from utils.network_utils import model_save, model_load
 
-task_weights = {'segment': 0.0002,
-                'deblur': 0.001,
-                'homography': 1} #1.2
+
 os.environ['PYTHONWARNINGS'] = 'ignore:semaphore_tracker:UserWarning'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
+
 
 def train(args, dataloader, model, optimizer, scheduler, losses_dict, metrics_dict, epoch):
-    tasks = model.module.tasks
+    tasks = ['segment']
     metrics = [k for task in tasks for k in metrics_dict[task].metrics]
     metric_cumltive = {k: [] for k in metrics}
     losses_cumltive = {k: [] for k in tasks}
@@ -45,9 +39,9 @@ def train(args, dataloader, model, optimizer, scheduler, losses_dict, metrics_di
             # Compute model predictions, errors and gradients and perform the update
             optimizer.zero_grad()
             outputs = model(frames[0])
-            outputs = dict(zip(tasks, outputs))
+            outputs = {"segment": outputs}
 
-            losses = {task: losses_dict[task](outputs[task], gt_dict[task]) * task_weights[task] for task in tasks}
+            losses = {task: losses_dict[task](outputs[task], gt_dict[task]) for task in tasks}
             loss = sum(losses.values())
             loss.backward()
             #torch.nn.utils.clip_grad_norm_(model.parameters(), 1) # added gradient clipping and normalization
@@ -89,7 +83,6 @@ def val(args, dataloader, model, metrics_dict, epoch):
         for seq_idx, seq in enumerate(dataloader):
             for frame in range(args.prev_frames, args.seq_len):
                 # Load the data and mount them on cuda
-                path = [x.split('/')[-3] + '_' + x.split('/')[-1] for x in seq['meta']['paths'][frame]]
                 if frame == args.prev_frames:
                     frames = [seq['image'][i].cuda(non_blocking=True) for i in range(frame + 1)]
                 else:
@@ -121,16 +114,16 @@ def val(args, dataloader, model, metrics_dict, epoch):
 def main(args):
 
 
-    tasks = [task for task in ['segment', 'deblur', 'homography'] if getattr(args, task)]
+    tasks = ['segment']
 
-    transformations = {'train': transforms.Compose([RandomColorChannel(), ColorJitter(), RandomHorizontalFlip(),
+    transformations = {'train': transforms.Compose([ColorJitter(), RandomHorizontalFlip(),
                                                     RandomVerticalFlip(), ToTensor(), Normalize()]),
                        'val': transforms.Compose([ToTensor(), Normalize()])}
 
     data = {split: MTL_Dataset(tasks, args.data_path, split, args.seq_len, transform=transformations[split])
             for split in ['train', 'val']}
 
-    loader = {split: DataLoader(data[split], batch_size=args.bs if split=='train' else 1, shuffle=split=='train', num_workers=4*4, pin_memory=True)
+    loader = {split: DataLoader(data[split], batch_size=args.bs, shuffle=split == 'train', num_workers=8, pin_memory=True)
               for split in ['train', 'val']}
 
     losses_dict = {
@@ -143,13 +136,8 @@ def main(args):
     }
     metrics_dict = {k: v for k, v in metrics_dict.items() if k in tasks}
 
-    params, fps, gflops = measure_efficiency(args)
-    print(params, fps, gflops)
 
-    if args.model=='deeplab':
-        model = DeepLabv3Plus(tasks).cuda()
-    else:
-        model = UnetPlusPlus(tasks).cuda()
+    model = smp.UnetPlusPlus(classes=2).cuda()
 
     model = torch.nn.DataParallel(model).cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
@@ -167,7 +155,7 @@ def main(args):
         else:
             os.makedirs(os.path.join(args.out, 'models'))
 
-    wandb.init(project='mtl-normal', name='dst-cv')
+    wandb.init(project='mtl-normal', name='dst-cv', mode='disabled')
     wandb.run.name = args.out.split('/')[-1]
     wandb.watch(model)
 
@@ -193,19 +181,16 @@ if __name__ == '__main__':
 
     parser.add_argument('--resume_epoch', dest='resume_epoch', help='Number of epoch to resume', default=0, type=int)
     parser.add_argument('--block', dest='block', help='Type of block "fft", "res", "inverted", "inverted_fft" ', default='fft', type=str)
-    parser.add_argument('--nr_blocks', dest='nr_blocks', help='Number of blocks', default=6, type=int)
 
     parser.add_argument("--segment", action='store_false', help="Flag for segmentation")
-    parser.add_argument("--deblur", action='store_true', help="Flag for  deblurring")
-    parser.add_argument("--homography", action='store_true', help="Flag for  homography estimation")
     parser.add_argument("--resume", action='store_true', help="Flag for resume training")
     parser.add_argument('--model', dest='model', help='Set type of model', default='deeplab', type=str)
 
     parser.add_argument('--epochs', dest='epochs', help='Set number of epochs', default=50, type=int)
     parser.add_argument('--bs', help='Set size of the batch size', default=6, type=int)
     parser.add_argument('--lr', help='Set learning rate', default=1e-4, type=float)
-    parser.add_argument('--seq_len', dest='seq_len', help='Set length of the sequence', default=5, type=int)
-    parser.add_argument('--prev_frames', dest='prev_frames', help='Set number of previous frames', default=1, type=int)
+    parser.add_argument('--seq_len', dest='seq_len', help='Set length of the sequence', default=1, type=int)
+    parser.add_argument('--prev_frames', dest='prev_frames', help='Set number of previous frames', default=0, type=int)
 
     parser.add_argument('--save_every', help='Save model every n epochs', default=1, type=int)
 

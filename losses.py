@@ -6,7 +6,7 @@ class SemanticSegmentationLoss(nn.Module):
 
 	def __init__(self, ce_factor=1, device='cuda'):
 		super(SemanticSegmentationLoss, self).__init__()
-		self.cross_entropy_loss = nn.CrossEntropyLoss(reduction='sum').to(device)
+		self.cross_entropy_loss = nn.CrossEntropyLoss(reduction='mean').to(device)
 		self.ce_factor = ce_factor
 
 	def forward(self, output, gt):
@@ -73,101 +73,5 @@ class CharbonnierLoss(nn.Module):
 	def forward(self, X, Y):
 		return torch.sqrt((X - Y) ** 2 + self.eps).sum()
 
-
-class DeblurringLoss(nn.Module):
-
-	def __init__(self, CL_factor=1, device='cuda', sobel=True):
-
-		super(DeblurringLoss, self).__init__()
-		self.sobel = sobel
-		self.CL_factor = CL_factor
-		self.CL = ContentLoss(mode='charbonnier').to(device)
-		if sobel:
-			self.E_factor = 0.1
-			self.EL = MSEdgeLoss().to(device)
-		#self.FFT_factor = FFT_factor
-		#self.FL = FFTLoss(mode='l2').to(device)
-
-	def forward(self, output, gt):
-		if not self.sobel:
-			cl_loss = self.CL(output, gt)
-			return self.CL_factor * cl_loss
-		else:
-			cl_loss = self.CL(output, gt)
-			el_loss = self.EL(output, gt)
-			#fft_loss = self.FL(output, gt)
-			return self.CL_factor * cl_loss + self.E_factor * el_loss
-
-class ContentLoss(nn.Module):
-
-	def __init__(self, mode='charbonnier', device='cuda'):
-
-		super(ContentLoss, self).__init__()
-		if mode == 'l2':
-			self.loss_function = nn.MSELoss(reduction='sum').to(device)
-		elif mode == 'l1':
-			self.loss_function = nn.L1Loss(reduction='sum').to(device)
-		elif mode == 'charbonnier':
-			self.loss_function = CharbonnierLoss().to(device)
-
-	def forward(self, output, gt):
-		if type(output) is list:
-			losses = []
-			for num, elem in enumerate(output[::-1]):
-				losses.append(self.loss_function(elem, torch.nn.functional.interpolate(gt, scale_factor=1.0/(2**num))))
-			loss = sum(losses)
-		else:
-			loss = self.loss_function(output, gt)
-		return loss
-
-
-class FFTLoss(nn.Module):
-
-	def __init__(self, mode='charbonnier', device='cuda'):
-
-		super(FFTLoss, self).__init__()
-		if mode == 'l2':
-			self.loss_function = nn.MSELoss(reduction='sum').to(device)
-		elif mode == 'l1':
-			self.loss_function = nn.L1Loss(reduction='sum').to(device)
-		elif mode == 'charbonnier':
-			self.loss_function = CharbonnierLoss().to(device)
-
-	def forward(self, output, gt):
-		if type(output) is list:
-			losses = []
-			for num, elem in enumerate(output[::-1]):
-				out_fft = torch.rfft(elem, signal_ndim=2, normalized=False, onesided=False)
-				gt_fft = torch.rfft(torch.nn.functional.interpolate(gt, scale_factor=1.0/(2**num)), signal_ndim=2, normalized=False, onesided=False)
-				losses.append(self.loss_function(out_fft, gt_fft))
-			loss = sum(losses)
-		else:
-			loss = self.loss_function(output, gt)
-		return loss
-
-class MaceLoss(nn.Module):
-
-	def __init__(self):
-		super(MaceLoss, self).__init__()
-		self.eps = 1e-6
-
-	def forward(self, X, Y):
-		return ((X - Y) ** 2 + self.eps).sum(dim=2).sqrt().sum()
-
-
-class HomographyLoss(nn.Module):
-	def __init__(self, device='cuda'):
-		super(HomographyLoss, self).__init__()
-		self.MaceLoss = MaceLoss().to(device)
-
-	def forward(self, output, gt):
-		if type(output) is list:
-			losses = []
-			for num, elem in enumerate(output[::-1]):
-				losses.append(self.MaceLoss(elem, gt[1] / (2**num)))
-			MaceLoss = sum(losses)
-		else:
-			MaceLoss = self.MaceLoss(output, gt)
-		return MaceLoss
 
 
