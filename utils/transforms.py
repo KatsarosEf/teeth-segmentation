@@ -98,8 +98,13 @@ class RandomHorizontalFlip(object):
         if random.random() < 0.5:
             '''Change the order of 0 and 1, for keeping the net search direction'''
             sample.update({'image': [np.copy(np.fliplr(_image)) for _image in sample['image']]})
-            if 'segment' in sample.keys():
-                sample.update({'segment': [np.copy(np.fliplr(_mask)) for _mask in sample['segment']]})
+            if 'segment_one' in sample.keys():
+                sample.update({'segment_one': [np.copy(np.fliplr(_mask)) for _mask in sample['segment_one']]})
+            if 'segment_two' in sample.keys():
+                sample.update({'segment_two': [np.copy(np.fliplr(_mask)) for _mask in sample['segment_two']]})
+            if 'segment_three' in sample.keys():
+                sample.update({'segment_three': [np.copy(np.fliplr(_mask)) for _mask in sample['segment_three']]})
+
             sample['meta']['transformations']['horizontal_flip'] = True
         else:
             sample['meta']['transformations']['horizontal_flip'] = False
@@ -115,8 +120,13 @@ class RandomVerticalFlip(object):
             '''Change the order of 0 and 1, for keeping the net search direction'''
 
             sample.update({'image': [np.copy(np.flipud(_image)) for _image in sample['image']]})
-            if 'segment' in sample.keys():
-                sample.update({'segment': [np.copy(np.flipud(_mask)) for _mask in sample['segment']]})
+            if 'segment_one' in sample.keys():
+                sample.update({'segment_one': [np.copy(np.flipud(_mask)) for _mask in sample['segment_one']]})
+            if 'segment_two' in sample.keys():
+                sample.update({'segment_two': [np.copy(np.flipud(_mask)) for _mask in sample['segment_two']]})
+            if 'segment_three' in sample.keys():
+                sample.update({'segment_three': [np.copy(np.flipud(_mask)) for _mask in sample['segment_three']]})
+
             sample['meta']['transformations']['vertical_flip'] = True
         else:
             sample['meta']['transformations']['vertical_flip'] = False
@@ -126,20 +136,35 @@ class RandomVerticalFlip(object):
 
 class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
+    def __init__(self):
+        self.mapping = {
+            0: (0, 0, 0),  # 0 = background
+            1: (255, 0, 0),  # 1 = class dentine
+            2: (0, 255, 0)  # 2 = class cavity
+        }
 
     def map_m2l(self, mask):
-        return mask
+        mask_out = torch.empty(mask.shape[0], mask.shape[1], dtype=torch.long)
+        for c, colors in self.mapping.items():
+            idx = (mask == torch.tensor(colors, dtype=torch.uint8).unsqueeze(0).unsqueeze(0))
+            idx = (idx.sum(2) == 3)
+            print(torch.tensor(c, dtype=torch.long))
+            mask_out[idx] = torch.tensor(c, dtype=torch.long)
+        return mask_out
 
     def __call__(self, sample):
-        #TODO write a caller function that maps the colors to classes i.e. [255,0,255] = 1, [255,255,0] = 2, [0,255,255] = 2  and [255,255,255] = background
+
         sample.update({'image': [torch.from_numpy(_image).permute(2, 0, 1) for _image in sample['image']]})
         if 'segment_one' in sample.keys():
-            sample.update({'segment_one': [torch.from_numpy(self.map_m2l(_mask).astype(float)).type(torch.LongTensor) for _mask in sample['segment_one']]})
+            sample.update({'segment_one': [self.map_m2l(torch.from_numpy(_mask)) for _mask in sample['segment_one']]})
         if 'segment_two' in sample.keys():
-            sample.update({'segment_two': [torch.from_numpy(self.map_m2l(_mask).astype(float)).type(torch.LongTensor) for _mask in sample['segment_two']]})
+            sample.update({'segment_two': [self.map_m2l(torch.from_numpy(_mask)) for _mask in sample['segment_two']]})
         if 'segment_three' in sample.keys():
-            sample.update({'segment_three': [torch.from_numpy(self.map_m2l(_mask).astype(float)).type(torch.LongTensor) for _mask in sample['segment_three']]})
+            sample.update({'segment_three': [self.map_m2l(torch.from_numpy(_mask)) for _mask in sample['segment_three']]})
 
+        # a = np.unique(np.concatenate([np.unique(sample['segment_one'][0]),np.unique(sample['segment_two'][0]),np.unique(sample['segment_three'][0])]))
+        # if a.max()>2 or a.min()<0:
+        #     print("provlima at {}".format(sample["meta"]["paths"][0]))
 
         return sample
 

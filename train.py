@@ -33,41 +33,41 @@ def train(args, dataloader, model, optimizer, scheduler, losses_dict, metrics_di
                 frames.append(seq['image'][frame].cuda(non_blocking=True))
                 del frames[0]
 
-            gt_dict = {task: seq[task][frame].cuda(non_blocking=True) if type(seq[task][frame]) is torch.Tensor else
-            [e.cuda(non_blocking=True) for e in seq[task][frame]] for task in tasks}
+            # gt_dict = {task: seq[task][frame].cuda(non_blocking=True) if type(seq[task][frame]) is torch.Tensor else
+            # [e.cuda(non_blocking=True) for e in seq[task][frame]] for task in tasks}
 
-            # Compute model predictions, errors and gradients and perform the update
-            optimizer.zero_grad()
-            outputs = model(frames[0])
-            outputs = {"segment_one": outputs}
-
-            losses = {task: losses_dict[task](outputs[task], gt_dict[task]) for task in tasks}
-            loss = sum(losses.values())
-            loss.backward()
-            #torch.nn.utils.clip_grad_norm_(model.parameters(), 1) # added gradient clipping and normalization
-            optimizer.step()
-
-            print('[TRAIN] [EPOCH:{}/{} ] [SEQ: {}/{}] Total Loss: {:.4f}\t{}'.format(epoch, args.epochs, seq_num+1, len(dataloader), loss, '\t'.join(
-                ['{} loss: {:.4f}'.format(task, losses[task]) for task in tasks])))
-
-            # Compute metrics for the tasks at hand
-            task_metrics = {task: metrics_dict[task](outputs[task], gt_dict[task]) for task in tasks}
-            metrics_values = {k: v.item() for task in tasks for k, v in task_metrics[task].items()}
-
-            print("[TRAIN] [EPOCH:{}/{} ] {}".format(epoch, args.epochs, '\t'.join(
-                ['{}: {:.4f}'.format(k, metrics_values[k]) for k in metrics])))
-            for metric in metrics:
-                metric_cumltive[metric].append(metrics_values[metric])
-            for t in tasks:
-                losses_cumltive[t].append(float(losses[t]))
-
-    scheduler.step()
-    wandb_logs = {"Train - {}".format(m): sum(metric_cumltive[m])/len(metric_cumltive[m]) for m in metrics}
-    for t in tasks:
-        wandb_logs['Loss: {}'.format(t)] = sum(losses_cumltive[t])/len(losses_cumltive[t])
-    wandb_logs['epoch'] = epoch
-    wandb_logs['lr'] = optimizer.param_groups[0]['lr']
-    wandb.log(wandb_logs)
+    #         # Compute model predictions, errors and gradients and perform the update
+    #         optimizer.zero_grad()
+    #         outputs = model(frames[0])
+    #         outputs = {"segment_one": outputs}
+    #
+    #         losses = {task: losses_dict[task](outputs[task], gt_dict[task]) for task in tasks}
+    #         loss = sum(losses.values())
+    #         loss.backward()
+    #         #torch.nn.utils.clip_grad_norm_(model.parameters(), 1) # added gradient clipping and normalization
+    #         optimizer.step()
+    #
+    #         print('[TRAIN] [EPOCH:{}/{} ] [SEQ: {}/{}] Total Loss: {:.4f}\t{}'.format(epoch, args.epochs, seq_num+1, len(dataloader), loss, '\t'.join(
+    #             ['{} loss: {:.4f}'.format(task, losses[task]) for task in tasks])))
+    #
+    #         # Compute metrics for the tasks at hand
+    #         task_metrics = {task: metrics_dict[task](outputs[task], gt_dict[task]) for task in tasks}
+    #         metrics_values = {k: v.item() for task in tasks for k, v in task_metrics[task].items()}
+    #
+    #         print("[TRAIN] [EPOCH:{}/{} ] {}".format(epoch, args.epochs, '\t'.join(
+    #             ['{}: {:.4f}'.format(k, metrics_values[k]) for k in metrics])))
+    #         for metric in metrics:
+    #             metric_cumltive[metric].append(metrics_values[metric])
+    #         for t in tasks:
+    #             losses_cumltive[t].append(float(losses[t]))
+    #
+    # scheduler.step()
+    # wandb_logs = {"Train - {}".format(m): sum(metric_cumltive[m])/len(metric_cumltive[m]) for m in metrics}
+    # for t in tasks:
+    #     wandb_logs['Loss: {}'.format(t)] = sum(losses_cumltive[t])/len(losses_cumltive[t])
+    # wandb_logs['epoch'] = epoch
+    # wandb_logs['lr'] = optimizer.param_groups[0]['lr']
+    # wandb.log(wandb_logs)
 
 
 
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', dest='model', help='Set type of model', default='deeplab', type=str)
 
     parser.add_argument('--epochs', dest='epochs', help='Set number of epochs', default=50, type=int)
-    parser.add_argument('--bs', help='Set size of the batch size', default=6, type=int)
+    parser.add_argument('--bs', help='Set size of the batch size', default=1, type=int)
     parser.add_argument('--lr', help='Set learning rate', default=1e-4, type=float)
     parser.add_argument('--seq_len', dest='seq_len', help='Set length of the sequence', default=1, type=int)
     parser.add_argument('--prev_frames', dest='prev_frames', help='Set number of previous frames', default=0, type=int)

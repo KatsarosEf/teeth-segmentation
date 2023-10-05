@@ -127,7 +127,7 @@ class MTL_Dataset(data.Dataset):
         return [cv2.imread(path).astype(np.float32) for path in self.images[index]]
 
     def _load_mask(self, index, folder):
-        return [cv2.imread(path).astype(np.float32) for path in folder[index]]
+        return [cv2.imread(path) for path in folder[index]]
 
     def __len__(self):
         return len(self.images)
