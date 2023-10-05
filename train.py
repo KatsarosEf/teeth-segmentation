@@ -39,7 +39,7 @@ def train(args, dataloader, model, optimizer, scheduler, losses_dict, metrics_di
             # Compute model predictions, errors and gradients and perform the update
             optimizer.zero_grad()
             outputs = model(frames[0])
-            outputs = {"segment": outputs}
+            outputs = {"segment_one": outputs}
 
             losses = {task: losses_dict[task](outputs[task], gt_dict[task]) for task in tasks}
             loss = sum(losses.values())
@@ -173,11 +173,11 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser(description='Parser of Training Arguments')
 
-    # parser.add_argument('--data', dest='data_path', help='Set dataset root_path', default='../raid/dblab_real', type=str)
-    # parser.add_argument('--out', dest='out', help='Set output path', default='../raid/STL-segme-dbreal', type=str)
-
-    parser.add_argument('--data', dest='data_path', help='Set dataset root_path', default='/media/efklidis/4TB/dblab_real', type=str) #/media/efklidis/4TB/ # ../raid/data_ours_new_split
+    parser.add_argument('--data', dest='data_path', help='Set dataset root_path', default="/media/efklidis/4TB/medical-annotations-reformatted", type=str)
     parser.add_argument('--out', dest='out', help='Set output path', default='/media/efklidis/4TB/debug', type=str)
+
+    # parser.add_argument('--data', dest='data_path', help='Set dataset root_path', default='/media/efklidis/4TB/dblab_real', type=str) #/media/efklidis/4TB/ # ../raid/data_ours_new_split
+    # parser.add_argument('--out', dest='out', help='Set output path', default='/media/efklidis/4TB/debug', type=str)
 
     parser.add_argument('--resume_epoch', dest='resume_epoch', help='Number of epoch to resume', default=0, type=int)
     parser.add_argument('--block', dest='block', help='Type of block "fft", "res", "inverted", "inverted_fft" ', default='fft', type=str)
