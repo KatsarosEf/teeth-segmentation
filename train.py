@@ -19,7 +19,7 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 
 
 def train(args, dataloader, model, optimizer, scheduler, losses_dict, metrics_dict, epoch):
-    tasks = ['segment']
+    tasks = model.module.tasks
     metrics = [k for task in tasks for k in metrics_dict[task].metrics]
     metric_cumltive = {k: [] for k in metrics}
     losses_cumltive = {k: [] for k in tasks}
@@ -75,7 +75,6 @@ def val(args, dataloader, model, metrics_dict, epoch):
     tasks = model.module.tasks
     metrics = [k for task in tasks for k in metrics_dict[task].metrics]
     metric_cumltive = {k: [] for k in metrics}
-    # metrics_hl = {k: [] for k in metrics}
     model.eval()
 
     with torch.no_grad():
@@ -114,7 +113,7 @@ def val(args, dataloader, model, metrics_dict, epoch):
 def main(args):
 
 
-    tasks = ['segment']
+    tasks = [task for task in ['segment_one', 'segment_two', 'segment_three'] if getattr(args, task)]
 
     transformations = {'train': transforms.Compose([ColorJitter(), RandomHorizontalFlip(),
                                                     RandomVerticalFlip(), ToTensor(), Normalize()]),
@@ -123,21 +122,27 @@ def main(args):
     data = {split: MTL_Dataset(tasks, args.data_path, split, args.seq_len, transform=transformations[split])
             for split in ['train', 'val']}
 
-    loader = {split: DataLoader(data[split], batch_size=args.bs, shuffle=split == 'train', num_workers=8, pin_memory=True)
+    loader = {split: DataLoader(data[split], batch_size=args.bs, shuffle=split == 'train', num_workers=4, pin_memory=True)
               for split in ['train', 'val']}
 
     losses_dict = {
-        'segment': SemanticSegmentationLoss().cuda()
+        'segment_one': SemanticSegmentationLoss().cuda(),
+        'segment_two': SemanticSegmentationLoss().cuda(),
+        'segment_three': SemanticSegmentationLoss().cuda()
+
     }
     losses_dict = {k: v for k, v in losses_dict.items() if k in tasks}
 
     metrics_dict = {
-        'segment': SegmentationMetrics().cuda()
+        'segment_one': SegmentationMetrics().cuda(),
+        'segment_two': SegmentationMetrics().cuda(),
+        'segment_three': SegmentationMetrics().cuda()
+
     }
-    metrics_dict = {k: v for k, v in metrics_dict.items() if k in tasks}
+    metrics_dict = {k: v for k, v in metrics_dict.items() if k in tasks if k in tasks}
 
 
-    model = smp.UnetPlusPlus(classes=2).cuda()
+    model = smp.UnetPlusPlus(tasks, classes=3).cuda()
 
     model = torch.nn.DataParallel(model).cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
@@ -180,9 +185,10 @@ if __name__ == '__main__':
     # parser.add_argument('--out', dest='out', help='Set output path', default='/media/efklidis/4TB/debug', type=str)
 
     parser.add_argument('--resume_epoch', dest='resume_epoch', help='Number of epoch to resume', default=0, type=int)
-    parser.add_argument('--block', dest='block', help='Type of block "fft", "res", "inverted", "inverted_fft" ', default='fft', type=str)
+    parser.add_argument("--segment_one", action='store_false', help="Flag for segmentation")
+    parser.add_argument("--segment_two", action='store_false', help="Flag for segmentation")
+    parser.add_argument("--segment_three", action='store_false', help="Flag for segmentation")
 
-    parser.add_argument("--segment", action='store_false', help="Flag for segmentation")
     parser.add_argument("--resume", action='store_true', help="Flag for resume training")
     parser.add_argument('--model', dest='model', help='Set type of model', default='deeplab', type=str)
 

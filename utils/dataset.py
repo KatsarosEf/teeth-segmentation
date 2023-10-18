@@ -24,7 +24,6 @@ class MTL_Dataset(data.Dataset):
                  root='./DST-dataset/', split='train', seq_len=20, transform=None,
                  meta=True, overfit=False):
 
-        do_seg = 'segment' in tasks
         self.root = root
         self.transform = transform
         self.meta = meta
@@ -36,9 +35,9 @@ class MTL_Dataset(data.Dataset):
         self.masks_one = []
         self.masks_two = []
         self.masks_three = []
-        self.annotator_one = True
-        self.annotator_two = True
-        self.annotator_three = True
+        self.annotator_one = 'segment_one' in tasks
+        self.annotator_two = 'segment_two' in tasks
+        self.annotator_three = 'segment_three' in tasks
 
         dataset_dir = os.path.join(root, self.split)
         for video in os.listdir(dataset_dir):
