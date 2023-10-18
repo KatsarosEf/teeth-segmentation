@@ -148,7 +148,8 @@ class ToTensor(object):
         for c, colors in self.mapping.items():
             idx = (mask == torch.tensor(colors, dtype=torch.uint8).unsqueeze(0).unsqueeze(0))
             idx = (idx.sum(2) == 3)
-            print(torch.tensor(c, dtype=torch.long))
+            if c>2 or c<0:
+                print(torch.tensor(c, dtype=torch.long))
             mask_out[idx] = torch.tensor(c, dtype=torch.long)
         return mask_out
 

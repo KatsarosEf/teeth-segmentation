@@ -43,8 +43,8 @@ class MTL_Dataset(data.Dataset):
         dataset_dir = os.path.join(root, self.split)
         for video in os.listdir(dataset_dir):
             image_dir, anno_one_dir, anno_two_dir, anno_three_dir = [os.path.join(dataset_dir, video, directory)
-                                                         for directory in ['input', 'annotator_one',
-                                                                           'annotator_two', 'annotator_three']]
+                                                         for directory in ['frames', 'anno_1',
+                                                                           'anno_2', 'anno_3']]
 
             filenames = sorted(os.listdir(image_dir))
             if seq_len is None:
@@ -61,23 +61,23 @@ class MTL_Dataset(data.Dataset):
 
                     # Images
 
-                    _image = os.path.join(image_dir, filename, "input.png")
+                    _image = os.path.join(image_dir, filename)
                     assert os.path.isfile(_image)
                     seq_images.append(_image)
 
                     # Segmentation Annotations
                     if self.annotator_one:
-                        anno_one = os.path.join(anno_one_dir, filename, "segmentation.png")
+                        anno_one = os.path.join(anno_one_dir, filename)
                         assert os.path.isfile(anno_one)
                         seq_masks_one.append(anno_one)
 
                     if self.annotator_two:
-                        anno_two = os.path.join(anno_two_dir, filename, "segmentation.png")
+                        anno_two = os.path.join(anno_two_dir, filename)
                         assert os.path.isfile(anno_two)
                         seq_masks_two.append(anno_two)
 
                     if self.annotator_three:
-                        anno_three = os.path.join(anno_three_dir, filename, "segmentation.png")
+                        anno_three = os.path.join(anno_three_dir, filename)
                         assert os.path.isfile(anno_three)
                         seq_masks_three.append(anno_three)
 

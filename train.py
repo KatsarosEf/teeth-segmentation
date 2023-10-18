@@ -173,7 +173,7 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser(description='Parser of Training Arguments')
 
-    parser.add_argument('--data', dest='data_path', help='Set dataset root_path', default="/media/efklidis/4TB/medical-annotations-reformatted", type=str)
+    parser.add_argument('--data', dest='data_path', help='Set dataset root_path', default="/media/efklidis/4TB/medical-annotations-release", type=str)
     parser.add_argument('--out', dest='out', help='Set output path', default='/media/efklidis/4TB/debug', type=str)
 
     # parser.add_argument('--data', dest='data_path', help='Set dataset root_path', default='/media/efklidis/4TB/dblab_real', type=str) #/media/efklidis/4TB/ # ../raid/data_ours_new_split
