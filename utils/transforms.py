@@ -139,18 +139,18 @@ class ToTensor(object):
     def __init__(self):
         self.mapping = {
             0: (0, 0, 0),  # 0 = background
-            1: (255, 0, 0),  # 1 = class dentine
+            1: (0, 0, 255),  # 1 = class dentine (255,0,0)
             2: (0, 255, 0)  # 2 = class cavity
         }
 
     def map_m2l(self, mask):
-        mask_out = torch.empty(mask.shape[0], mask.shape[1], dtype=torch.long)
+        mask_out = 999*torch.ones(mask.shape[0], mask.shape[1], dtype=torch.long)
         for c, colors in self.mapping.items():
             idx = (mask == torch.tensor(colors, dtype=torch.uint8).unsqueeze(0).unsqueeze(0))
             idx = (idx.sum(2) == 3)
-            if c>2 or c<0:
-                print(torch.tensor(c, dtype=torch.long))
             mask_out[idx] = torch.tensor(c, dtype=torch.long)
+        # if mask_out.max() > 2 or mask_out.min() < 0:
+            print(mask_out.unique(return_counts=True))
         return mask_out
 
     def __call__(self, sample):

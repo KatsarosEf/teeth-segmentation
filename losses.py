@@ -10,13 +10,7 @@ class SemanticSegmentationLoss(nn.Module):
 		self.ce_factor = ce_factor
 
 	def forward(self, output, gt):
-		if type(output) is list:
-			losses = []
-			for num, elem in enumerate(output[::-1]):
-				losses.append(self.cross_entropy_loss(elem, nn.functional.interpolate(gt.float().unsqueeze(1), scale_factor=1.0/(2**num)).long().squeeze(1)))
-			cross_entropy_loss = sum(losses)
-		else:
-			cross_entropy_loss = self.cross_entropy_loss(output, gt)
+		cross_entropy_loss = self.cross_entropy_loss(output[0], gt)
 		return self.ce_factor * cross_entropy_loss
 
 class EdgeLoss(nn.Module):

@@ -1,7 +1,6 @@
 import os
 import torch
 import wandb
-import segmentation_models_pytorch as smp
 from argparse import ArgumentParser
 from utils.dataset import MTL_Dataset
 import torch.optim as optim
@@ -12,7 +11,7 @@ from losses import SemanticSegmentationLoss
 from metrics import SegmentationMetrics
 from utils.transforms import ToTensor, Normalize, RandomHorizontalFlip, RandomVerticalFlip, ColorJitter
 from utils.network_utils import model_save, model_load
-
+from models import UnetPlusPlus
 
 os.environ['PYTHONWARNINGS'] = 'ignore:semaphore_tracker:UserWarning'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -32,16 +31,19 @@ def train(args, dataloader, model, optimizer, scheduler, losses_dict, metrics_di
             else:
                 frames.append(seq['image'][frame].cuda(non_blocking=True))
                 del frames[0]
-
+            #
             # gt_dict = {task: seq[task][frame].cuda(non_blocking=True) if type(seq[task][frame]) is torch.Tensor else
-            # [e.cuda(non_blocking=True) for e in seq[task][frame]] for task in tasks}
-
-    #         # Compute model predictions, errors and gradients and perform the update
-    #         optimizer.zero_grad()
-    #         outputs = model(frames[0])
-    #         outputs = {"segment_one": outputs}
-    #
-    #         losses = {task: losses_dict[task](outputs[task], gt_dict[task]) for task in tasks}
+            #                 [e.cuda(non_blocking=True) for e in seq[task][frame]] for task in tasks}
+            #
+            # # Compute model predictions, errors and gradients and perform the update
+            # optimizer.zero_grad()
+            # outputs = model(frames[0])
+            # outputs = {"segment_one": outputs,
+            #            "segment_two": outputs,
+            #            "segment_three": outputs}
+            #
+            #
+            # losses = {task: losses_dict[task](outputs[task], gt_dict[task]) for task in tasks}
     #         loss = sum(losses.values())
     #         loss.backward()
     #         #torch.nn.utils.clip_grad_norm_(model.parameters(), 1) # added gradient clipping and normalization
@@ -115,8 +117,9 @@ def main(args):
 
     tasks = [task for task in ['segment_one', 'segment_two', 'segment_three'] if getattr(args, task)]
 
-    transformations = {'train': transforms.Compose([ColorJitter(), RandomHorizontalFlip(),
-                                                    RandomVerticalFlip(), ToTensor(), Normalize()]),
+    transformations = {'train': transforms.Compose([
+        # ColorJitter(), RandomHorizontalFlip(),RandomVerticalFlip(),
+        ToTensor(), Normalize()]),
                        'val': transforms.Compose([ToTensor(), Normalize()])}
 
     data = {split: MTL_Dataset(tasks, args.data_path, split, args.seq_len, transform=transformations[split])
@@ -142,7 +145,7 @@ def main(args):
     metrics_dict = {k: v for k, v in metrics_dict.items() if k in tasks if k in tasks}
 
 
-    model = smp.UnetPlusPlus(tasks, classes=3).cuda()
+    model = UnetPlusPlus(tasks, classes=3).cuda()
 
     model = torch.nn.DataParallel(model).cuda()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
@@ -193,7 +196,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', dest='model', help='Set type of model', default='deeplab', type=str)
 
     parser.add_argument('--epochs', dest='epochs', help='Set number of epochs', default=50, type=int)
-    parser.add_argument('--bs', help='Set size of the batch size', default=1, type=int)
+    parser.add_argument('--bs', help='Set size of the batch size', default=4, type=int)
     parser.add_argument('--lr', help='Set learning rate', default=1e-4, type=float)
     parser.add_argument('--seq_len', dest='seq_len', help='Set length of the sequence', default=1, type=int)
     parser.add_argument('--prev_frames', dest='prev_frames', help='Set number of previous frames', default=0, type=int)
